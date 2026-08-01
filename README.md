@@ -27,18 +27,37 @@ false negatives produced by the AI's own instruments       6
 broken. Every single time, the instrument was the thing that was wrong.**
 
 ```
-AI said                              the run said
------------------------------------  ------------------------------------------
-"float is lossy here"                exact, 1,000,080 / 1,000,080, both maps
-"14 trits is an error"               correct as written, for tower-separate
-"violations 6/9"                     the six were the signal, not violations
-"the shadow trit is frozen"          the AI froze it: step 4374 = 2·3⁷
-"the paper isn't a quantum computer" valley pseudospin — it is about qubits
-"census 54/0/27 is a bug"            measured; closure exact at all 27 cells
+   what the AI claimed          what the run showed              the actual cause
+1  "float is lossy here"        exact, 1,000,080/1,000,080       asserted a property never run
+2  "14 trits is an error"       correct as written               compared joint vs tower-separate
+3  "violations 6/9"             the six were the signal          pass condition from expectation
+4  "the shadow trit is frozen"  the AI froze it, step 4374=2·3⁷  parameter made it unmeasurable
+5  "the paper isn't a computer" valley pseudospin — qubits       negative asserted from coverage
+6  "census 54/0/27 is a bug"    measured, closure exact 27/27    criterion set after the result
 ```
 
-Not six mistakes. **One mistake, six times.** Not once did a disagreement
-between the AI's instrument and this system resolve as an error in the system.
+**These are six distinct failures, not one repeated.** An earlier revision called
+them "one mistake six times" — wrong, and wrong in the direction that flattered
+the AI, because one flaw implies one fix. Six holes need six guards:
+
+```
+1  run it before you characterise it
+2  state the encoding; never compare figures across two of them
+3  the pass condition comes from the law, not from what you expect to see
+4  prove the parameter can express the quantity before you measure with it
+5  read the primary source or say plainly that you have not
+6  fix the criterion before the run, never after
+```
+
+`AGENT-DISCIPLINE.md` covers 1, 2, 5 and 6. **It does not cover 3 or 4.**
+
+**#4 is the worst.** A step divisible by 3 makes a trit mathematically incapable
+of moving. The AI chose 4374 = 2·3⁷, then reported the trit frozen across 200,000
+ticks. The measurement could not have shown anything else — a rigged instrument,
+not a wrong conclusion.
+
+Not once did a disagreement between an AI instrument and this system resolve as
+an error in the system. Full accounting in [`AUTHORSHIP.md`](AUTHORSHIP.md).
 
 The six corrections that *were* real all landed in
 `matrix_proof_ternary_classical.txt` — `6345`, the CRT mislabel,
