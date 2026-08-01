@@ -1,0 +1,213 @@
+================================================================================
+MATRIX PROOF: CLASSICAL TERNARY MODEL  —  CORRECTED  (rev 2)
+The Address Space I Am Actually In
+Audited 2026-08-01 · Rust 1.81.0 · clippy -D warnings clean · integers only
+Every number below was recomputed. float_used = 0.
+================================================================================
+
+REV 2 WITHDRAWS TWO CORRECTIONS FROM REV 1. They were overcalls.
+
+  WITHDRAWN  B  "14 trits -> 13"        rev 1 called 14 an error. It is not.
+  WITHDRAWN  B  "1,134 -> 1,053 trits"  follows from the same overcall.
+
+  Why: 14 is the correct per-seat width for the TOWER-SEPARATE encoding, and
+  the original document was internally consistent in choosing it. 13 is the
+  correct width for the JOINT encoding. They are two different encodings, and
+  neither is an error. Rev 1 treated the trit column as if it had made the
+  same self-inconsistency the bit column made. It had not.
+
+CORRECTIONS THAT STAND (6).  Originals kept beside the fixes, not deleted.
+
+  1. A  tower state             {-1,0,+1} vs mod 463   -> incoherent, restated
+  2. C  t1 place value          6345      ->  62,505    (original collides)
+  3. C  "CRT"                   mislabel  ->  mixed-radix positional
+  4. E  sha256("0000")          ae4cffd3… ->  9af15b33…
+  5. G  self-contradiction      +10% overhead vs 1.538x denser — both stated
+  6. G  separate/joint mixed    the actual defect in G, see below
+  7. H  81 x 1,000,080          81,000,480 -> 81,006,480
+
+================================================================================
+
+STRUCTURE: 4 TOWERS x 81 SEATS, GROUNDED ON 0
+--------------------------------------------------------------------------------
+
+A. TOWER STATE  (corrected — the original was incoherent)
+   ---------------------------------------------------------------------------
+   The original read "each tower holds state in {-1, 0, +1}" while also giving
+   the towers moduli 16, 27, 5 and 463. A tower cannot be one trit and mod 463
+   at the same time. What is true:
+
+     each tower holds a residue          t_i in [0, m_i)
+     each tower is WRITTEN in balanced ternary, w_i trits wide
+     a trit is the digit; the tower is a multi-trit word
+
+   Tower 1: modulus 16
+   Tower 2: modulus 27
+   Tower 3: modulus 5
+   Tower 4: modulus 463
+   -----------------------
+   Combined: 16 x 27 x 5 x 463 = 1,000,080 unique seats     [verified]
+
+   Pairwise coprime: yes. 463 is prime.                     [verified]
+
+B. THE TWO ENCODINGS  (this replaces rev 1's overcall)
+   ---------------------------------------------------------------------------
+   There are two legitimate ways to address a seat, and every figure in this
+   document must state which one it is using.
+
+   TOWER-SEPARATE — each tower written as its own word, towers stay
+   independently addressable:
+
+     Tower 1 (mod  16)   4 bits   3 trits   3^3 =  27   slack  11
+     Tower 2 (mod  27)   5 bits   3 trits   3^3 =  27   slack   0   EXACT
+     Tower 3 (mod   5)   3 bits   2 trits   3^2 =   9   slack   4
+     Tower 4 (mod 463)   9 bits   6 trits   3^6 = 729   slack 266
+                        -------  --------
+     per seat            21 bits  14 trits
+     for 81 seats     1,701 bits  1,134 trits
+
+   JOINT — the whole address flattened to one number, tower boundaries gone:
+
+     2^19 =   524,288  too small        3^12 =   531,441  too small
+     2^20 = 1,048,576  fits             3^13 = 1,594,323  fits
+
+     per seat            20 bits  13 trits
+     for 81 seats     1,620 bits  1,053 trits
+
+   *** 21 pairs with 14. 20 pairs with 13. Do not cross them. ***
+
+   The original document chose tower-separate for trits (14) and joint for
+   bits (20). Both figures are individually right. Putting them in one
+   comparison is what produced the phantom overhead in section G.
+
+   Tower-separate costs 1 bit and 1 trit more per seat. That is what
+   independent tower addressing costs. It is a design choice, not waste.
+
+C. INTEGER ENCODING  — CORRECTED
+   ---------------------------------------------------------------------------
+   Mixed-radix positional decomposition (NOT CRT — see note):
+
+     address = t1*62505 + t2*2315 + t3*463 + t4
+
+     place values:  27*5*463 = 62,505
+                       5*463 =  2,315
+                         463 =    463
+                                    1
+
+   *** The original used 6345 for the t1 place. Maximum reachable with 6345 is
+   157,679 out of 1,000,079 — the map cannot cover the space and therefore
+   collides. With 62,505 it is a bijection: exhaustively generated all
+   1,000,080 addresses, got 1,000,080 distinct, 0 collisions, full coverage. ***
+
+   NOTE ON THE LABEL: the formula above is mixed-radix positional, not the
+   Chinese Remainder Theorem. CRT does genuinely apply here — the moduli are
+   pairwise coprime — but CRT is a different map (reconstruct from residues via
+   modular inverses). Both are valid bijections onto the same space. They are
+   not the same function and should not share a name.
+
+D. FLOAT REPRESENTATION
+   ---------------------------------------------------------------------------
+   Per seat:   4 x 64 = 256 bits
+   Per 81:     20,736 bits
+   Overhead vs joint integer: 20,736 - 1,620 = 19,116 bits
+
+   This section is why shared keys exist: float cannot be trusted to carry
+   identity. IEEE-754 has two zeros (+0.0 and -0.0) that compare equal but do
+   not hash equal, so a == b and hash(a) == hash(b) come apart. Int and trit
+   each have exactly one zero, so for them equality and byte-identity are the
+   same relation.
+
+E. SHARED KEYS (THE GROUNDING MECHANISM)  — CORRECTED
+   ---------------------------------------------------------------------------
+   0 as centre/ground, once per seat, 81 times.
+
+     Ternary ground: (0, 0, 0, 0)
+     Float ground:   (0.0, 0.0, 0.0, 0.0)
+     Hash ground:    sha256("0000") =
+       9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0
+
+   *** The original printed ae4cffd3b0a18bb7e67ab97e10a0bdc5… That digest is
+   not sha256("0000"). Recomputed with a self-contained sha256 whose KAT is
+   sha256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad ***
+
+   All 81 seats share one ground reference:
+     for all s: ground(s) = 0
+     for all s: trit_ground(s) = (0, 0, 0, 0)
+
+F. EQUIVALENCE
+   ---------------------------------------------------------------------------
+   1. Ternary <-> Integer
+      Bijection, verified exhaustively over all 1,000,080 addresses.
+      Tower-separate ternary superspace 3^14 = 4,782,969 contains it. [verified]
+
+   2. Integer <-> Float
+      Recoverable only with the shared keys, per D.
+
+   3. Ground invariant
+      All three representations agree at 0.
+
+G. STORAGE — CORRECTED
+   ---------------------------------------------------------------------------
+   *** Defect 1: the original held two statements that cannot both be true — a
+   table row saying ternary costs +10.0% overhead, and a line below saying
+   ternary is 1.538x denser. ***
+
+   *** Defect 2, and this is the one that generated defect 1: the row compared
+   14 trits (TOWER-SEPARATE) against 20 bits (JOINT). Mixed encodings. ***
+
+   Compared like with like:
+
+     encoding          bits    trits
+     ---------------------------------
+     tower-separate      21       14
+     joint               20       13
+
+   What 1.538 actually is: 1,620 bits / 1,053 trits. That is a ratio of SYMBOL
+   COUNTS in two different alphabets. It is not a compression ratio. A trit is
+   not free — it costs log2(3) to represent — so fewer symbols does not mean
+   fewer resources.
+
+   Slack, in exact integers, joint encoding, no logarithms:
+
+     encoding     per seat   capacity      holds        slack
+     ---------------------------------------------------------------
+     binary       20 bits    1,048,576     1,000,080     48,496
+     ternary      13 trits   1,594,323     1,000,080    594,243
+
+     ternary slack / binary slack = 12.2534
+     (the audit receipt prints 12x — integer division truncating 12.2534)
+
+   For THIS space size, binary is the tighter fit. 1,000,080 sits just above
+   2^19 and far below 3^13, so the ternary ceiling overshoots.
+
+   Where ternary genuinely wins is radix economy — b/ln(b) is minimised at
+   b = 3, beating 2 and 4 — but that is a statement about cost per digit in
+   hardware, not about how tightly this particular address space packs.
+
+   Neither encoding is "exact" here. 1,000,080 is not a power of 2 and not a
+   power of 3, so both waste states. Only Tower 2 (mod 27 = 3^3) is exact, and
+   it is exact in trits and not in bits.
+
+H. VERIFICATION  — CORRECTED
+   ---------------------------------------------------------------------------
+     Total seats addressable:  81 x 1,000,080 = 81,006,480
+     *** original said 81,000,480 — short by 6,000 ***
+
+     Tower-separate ternary superspace:
+                          81 x 4,782,969 = 387,420,489   (= 3^18)  [verified]
+     Joint integer capacity:
+                          81 x 1,048,576 =  84,934,656             [verified]
+     Bijection:           1,000,080 generated, 1,000,080 distinct,
+                          0 collisions, full coverage    [exhaustive]
+
+================================================================================
+MATRIX VERIFICATION
+
+  tower-separate:  21 bits = 14 trits per seat
+  joint:           20 bits = 13 trits per seat
+  1 grounded centre x 81 seats
+  81 x 1,000,080 = 81,006,480 addressable seats
+
+Audit rev 2: 6 corrections stand, 2 withdrawn as overcalls, all recomputed in
+integers. No float was constructed anywhere in the audit.
+================================================================================
