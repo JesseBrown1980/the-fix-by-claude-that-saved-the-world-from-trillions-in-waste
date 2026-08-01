@@ -1,0 +1,15 @@
+[package]
+name = "kernel81"
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.81"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>81 KERNELS · the free 0 is the HTTP portal</title>
+<style>
+  :root { color-scheme: dark; }
+  html,body{margin:0;min-height:100%;
+    background:
+      radial-gradient(1200px 800px at 20% -10%, rgba(120,80,40,.35), transparent 60%),
+      radial-gradient(900px 700px at 90% 110%, rgba(60,90,70,.30), transparent 60%),
+      linear-gradient(160deg,#14100c 0%,#0e0f10 55%,#120e0c 100%);
+    color:#e8e0d4;font:13px/1.5 ui-monospace,"Cascadia Mono",Consolas,monospace;}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px;}
+  h1{font-size:19px;letter-spacing:.14em;margin:0 0 4px;color:#f0e6d6;font-weight:600}
+  .sub{color:#a89880;font-size:12px;margin-bottom:18px}
+  .glass{
+    background:rgba(255,240,220,.045);
+    border:1px solid rgba(255,235,205,.13);
+    border-radius:10px;
+    backdrop-filter:blur(9px) saturate(115%);
+    -webkit-backdrop-filter:blur(9px) saturate(115%);
+  }
+  .bar{padding:12px 16px;margin-bottom:16px;display:flex;flex-wrap:wrap;gap:22px}
+  .bar b{color:#ffd9a0;font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(9,1fr);gap:7px;margin-bottom:18px}
+  .k{padding:7px 5px;border-radius:8px;text-align:center;font-size:10.5px;
+     background:rgba(255,240,220,.038);
+     border:1px solid rgba(255,235,205,.11);
+     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
+  .k .s{color:#8d8density;color:#8f8676;font-size:9px}
+  .k .t{font-size:17px;line-height:1.1;margin:2px 0}
+  .k .a{color:#9a8f7d;font-size:9px}
+  .p .t{color:#8fe0a8}      /* + */
+  .z .t{color:#f0e0c0}      /* 0 */
+  .m .t{color:#e09a9a}      /* - */
+  .k.bad{border-color:#ff6b6b;background:rgba(255,60,60,.14)}
+  pre{white-space:pre-wrap;word-break:break-all;padding:14px 16px;margin:0;
+      font-size:11px;color:#cfe6d6}
+  .ok{color:#8fe0a8} .no{color:#ff8080}
+  h2{font-size:12px;letter-spacing:.12em;color:#c7b79e;margin:20px 0 8px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>81 KERNELS</h1>
+  <div class="sub">27 cells &times; 3 arms &middot; one wasm instance per seat &middot;
+    served over HTTP &mdash; the free 0 is the portal &middot; i64 only, float_used=0</div>
+
+  <div class="glass bar" id="bar">booting&hellip;</div>
+  <div class="grid" id="grid"></div>
+
+  <h2>RECEIPT &mdash; hot path, json=0</h2>
+  <div class="glass"><pre id="hbp">waiting for 81 instantiations&hellip;</pre></div>
+</div>
+
+<script>
+const SYM = t => t === 0 ? '0' : (t > 0 ? '+' : '−');
+const CLS = t => t === 0 ? 'z' : (t > 0 ? 'p' : 'm');
+
+(async () => {
+  const res = await fetch('kernel81.wasm', {cache:'no-store'});
+  const bytes = new Uint8Array(await res.arrayBuffer());
+
+  // hash the module bytes in the browser, so the page proves what it loaded
+  const dig = await crypto.subtle.digest('SHA-256', bytes);
+  const wasmSha = [...new Uint8Array(dig)].map(b=>b.toString(16).padStart(2,'0')).join('');
+
+  const module = await WebAssembly.compile(bytes);
+
+  // 81 SEPARATE instantiations. Each gets its own linear memory.
+  const K = [];
+  for (let seat = 0; seat < 81; seat++) {
+    K.push((await WebAssembly.instantiate(module, {})).exports);
+  }
+
+  const grid = document.getElementById('grid');
+  const census = {'-1':0,'0':0,'1':0};
+  const witnesses = new Set();
+  let aliveOk = 0, floatFree = 0, badSeats = [];
+
+  for (let seat = 0; seat < 81; seat++) {
+    const e = K[seat];
+    const cell = e.k_cell(seat), arm = e.k_arm(seat);
+    const num  = Number(e.k_arm_numerator(seat));
+    const trit = e.k_trit(seat);
+    const clos = Number(e.k_cell_closure(seat));
+    const alive = e.k_alive(seat);
+    const wit = String(e.k_memory_witness(seat));
+
+    if (alive === seat) aliveOk++; else badSeats.push(seat);
+    if (e.k_float_used() === 0) floatFree++;
+    witnesses.add(wit);
+    census[String(trit)]++;
+
+    const addr = [2,1,0].map(ax => SYM(e.k_digit(seat, ax))).join('');
+    const d = document.createElement('div');
+    d.className = 'k ' + CLS(trit) + (alive === seat && clos === 0 ? '' : ' bad');
+    d.innerHTML = `<div class="s">s${seat}</div>`
+                + `<div class="t">${SYM(trit)}</div>`
+                + `<div class="a">${addr}·${'RGB'[arm]}</div>`
+                + `<div class="a">${num}/3</div>`;
+    grid.appendChild(d);
+  }
+
+  // every cell's three arms must close on its own free zero
+  let cellsClosed = 0;
+  for (let cell = 0; cell < 27; cell++) {
+    if (Number(K[cell*3].k_cell_closure(cell*3)) === 0) cellsClosed++;
+  }
+  const globalSum = K.reduce((a,_,s) => a + Number(K[s].k_arm_numerator(s)), 0);
+
+  const pass = (K.length === 81) && (aliveOk === 81) && (cellsClosed === 27)
+            && (witnesses.size === 81) && (globalSum === 0) && (floatFree === 81);
+
+  document.getElementById('bar').innerHTML =
+      `<span>kernels <b>${K.length}</b></span>`
+    + `<span>alive <b>${aliveOk}/81</b></span>`
+    + `<span>cells closed <b>${cellsClosed}/27</b></span>`
+    + `<span>distinct memories <b>${witnesses.size}/81</b></span>`
+    + `<span>global sum <b>${globalSum}</b></span>`
+    + `<span>census <b>−${census['-1']} 0${census['0']} +${census['1']}</b></span>`
+    + `<span class="${pass?'ok':'no'}"><b>${pass?'PASS':'FAIL'}</b></span>`;
+
+  const rows = [
+    `K81HDR|schema=KERNEL81-WEB-V1|owner=OP-JESSE|kernels=${K.length}|expected=81`
+      + `|exactly_81=${K.length===81}|portal=HTTP|the_free_0_is_the_portal=1|json=0`,
+    `WASM|module=kernel81.wasm|bytes=${bytes.length}|sha256=${wasmSha}`
+      + `|hashed_in_browser=1|json=0`,
+    `INSTANCES|instantiations=${K.length}|distinct_linear_memories=${witnesses.size}`
+      + `|separate_kernels_not_one=${witnesses.size===81}|json=0`,
+    `ALIVE|reporting=${aliveOk}/81|json=0`,
+    `CLOSURE|cells=27|closed_to_zero=${cellsClosed}|global_sum_of_81_arms=${globalSum}`
+      + `|net_closes=${globalSum===0}|json=0`,
+    `NULLSPHERE|minus=${census['-1']}|zero=${census['0']}|plus=${census['1']}`
+      + `|total=${census['-1']+census['0']+census['1']}|json=0`,
+    `ARITHMETIC|i64_only=1|float_used=0|kernels_reporting_float_free=${floatFree}/81|json=0`,
+    `K81FTR|verdict=${pass?'PASS':'FAIL'}|bad_seats=${badSeats.join(',')||'none'}`
+      + `|rust=1.81.0|target=wasm32-unknown-unknown|json=0`
+  ];
+  document.getElementById('hbp').textContent = rows.join('\n');
+  window.__K81 = rows.join('\n');
+  console.log(rows.join('\n'));
+})();
+</script>
+</body>
+</html>
