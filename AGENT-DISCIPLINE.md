@@ -266,3 +266,80 @@ turns, each time on objection rather than on a rerun. The operator's own
 `shared_key_81.py` computes **21 bits per seat** and runs 81/81. When you are
 pushed, rerun and report. Moving without rerunning is §0's second failure, and
 it is how a verified result gets lost.
+**BENCHMARK THE THING, NOT THE HARNESS.** A number is void if the measuring apparatus dominated it. A per-operation bash loop measures the FORK RATE (283/s vs 618,081/s in-process on the same filesystem); a Python probe of a Rust system measures Python. Measure in-process, in the system's own toolchain, on the RUNNING built binary, and print the scope beside the number (n, operation, cache state, host). The bridge cost is NOT one number: measured 826.31x for metadata_stat and 292.01x for open_read_close on the same two lanes — quoting one figure for a different operation is a false claim.
+
+---
+
+## 12. A VERDICT IS THREE-VALUED
+
+Two boxes force a wrong answer. An agent that obtained **no measurement** has only
+PASS and FAIL to write in, so it writes FAIL. Four instances in one day on this
+corpus, from two different agents:
+
+```
+"the acer machine is down"          <- from a seat that could not reach it
+"the-colour-qr is unaudited"        <- the repo did not exist to audit
+"those branches are the only copy"  <- from a vantage blind to GitHub's copy
+"still building after 25 minutes"   <- the agent's patience, not the build
+```
+
+Same shape every time: **absence of measurement rendered as a negative finding.**
+Every check emits one of three, never two:
+
+```
+MEASURED_PASS   ran it, it passed, here is the number
+MEASURED_FAIL   ran it, it failed, here is the output
+NOT_MEASURED    no measurement obtained + a MANDATORY reason:
+                STILL_RUNNING | NO_TOOLCHAIN | NO_AUTH | NO_NETWORK
+                NOT_REACHABLE_FROM_HERE | DOES_NOT_EXIST | BUDGET
+```
+
+`NOT_MEASURED` is not a pass and not a failure. **A run containing it is
+incomplete, not red.** `CANNOT_SEE` is not `FALSE` (§0); this is that law given a
+place to be written down.
+
+**A clock may measure; it may never judge.** Duration is a measurement — benchmark
+it (§10). Reading a timeout's *exit code* as the verdict is the error, and the two
+uses look identical on the command line:
+
+```
+timeout N bash -c 'until <cond>; do sleep 1; done'    CORRECT: bounded wait, exits on the condition
+timeout N <runner>  + exit code taken as the verdict  THE ERROR
+```
+
+Same command, opposite meaning. **Only the assertion tells you which.** Do not
+over-correct into banning timeouts: a sweep of all 182 repos found 114 `timeout`
+uses and almost every one was correct.
+
+Measured specimen, 2026-08-06 — and it is a first-party action, not our code:
+`actions/deploy-pages@v4` polled `deployment_in_progress` to its 600000 ms budget,
+wrote `##[error]Timeout reached, aborting!`, marked the run **failure**, and then
+**cancelled the live deployment**. The deployment was not broken; the action's
+patience ran out. **Never kill a live process from a timeout.**
+
+**Every verdict carries its vantage** — `seat= host= toolchain= lane=`. Then "the
+machine is down" becomes unsayable; it can only come out as
+`reachable=NOT_MEASURED|reason=NOT_REACHABLE_FROM_HERE|from=<seat>`. A non-owning
+observer emits **evidence, not a verdict** (§8): only the owning gate may say FAIL.
+
+**The mirror failure — a step that cannot fail.** A false PASS costs as much as a
+false FAIL, and hides longer:
+
+```
+pytest tests/ ... || true             passes whether or not the tests pass
+continue-on-error: true  on a gate    the gate is advisory; the check is decoration
+#[test] fn x() { call(); }            no assertion; the name promises more than it checks
+20-lane matrix, nothing downstream    "all 20 ran" and "all 20 failed" read identically
+```
+
+**The whole family reduces to one question:**
+
+> **If the thing I am testing were completely broken right now, would this step
+> turn red?**
+
+If the answer is no, the step is decoration. Delete the `|| true` and find out what
+actually fails; where something is known-broken, mark it `xfail` so the **test**
+carries the knowledge instead of the workflow hiding it. Where a sweep may wipe
+out, add a final job that fails if fewer than N lanes produced a result — a total
+wipeout must never read as success.
+
